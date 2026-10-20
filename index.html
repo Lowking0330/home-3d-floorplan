@@ -71,9 +71,7 @@ header p{font-size:13px;margin:0;color:var(--muted)}
 .view-action{width:100%;background:none;border:1px solid var(--line);border-radius:4px;padding:6px;margin:3px 0;min-height:34px}
 .orbit-speed{display:block;margin-top:6px}
 .orbit-speed input{width:100%}
-.clean header,.clean .tour,.clean .panel,.clean .bottom,.clean .badge,.clean .view-widget{opacity:0;pointer-events:none;visibility:hidden}
-.restore{display:none;position:fixed;left:14px;bottom:14px;z-index:25;background:var(--ink);color:var(--paper);border:0;border-radius:25px;padding:8px 16px}
-.clean .restore{display:block}
+.clean header,.clean .tour,.clean .panel,.clean .bottom,.clean .badge,.clean .view-widget,.restore{opacity:0;pointer-events:none;visibility:hidden;display:none !important}
 .modal{position:fixed;inset:0;z-index:30;background:#12302499;display:none;align-items:center;justify-content:center;padding:20px}
 .modal.open{display:flex}
 .dialog{position:relative;background:#f5f5ec;color:#203b30;border-radius:10px;padding:26px;max-width:760px;max-height:92dvh;overflow:auto;box-shadow:0 20px 60px #0004}
@@ -97,10 +95,8 @@ header p{font-size:13px;margin:0;color:var(--muted)}
 .color-dot{display:inline-block;width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:8px;border:1px solid #718269}
 .env-picker{display:flex;align-items:center;gap:12px;margin-top:14px}
 .error{position:fixed;top:35%;left:50%;transform:translateX(-50%);max-width:650px;z-index:60;background:#fff2e3;color:#843c21;padding:24px;line-height:1.8;display:none;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.2)}
-#load{position:fixed;inset:0;display:grid;place-items:center;background:#d0dad0;z-index:45;font-size:18px;font-weight:700}
-#load span{border-bottom:3px solid #a75030;padding:16px 24px}
-.tooltip{position:fixed;bottom:148px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:8px 18px;z-index:24;pointer-events:none;opacity:0;transition:.2s;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.12)}
-.tooltip.show{opacity:1}
+#load{display:none !important}
+.tooltip{display:none !important}
 .dark-bg{--ink:#f0f3e8;--muted:#d2dfcf;--line:#82988b;--panel:rgba(26,47,39,.96);--paper:#e5ebdf;--rust:#ffc39c}
 .dark-bg .tour .active{background:#445848}
 .dark-bg .row button.on{background:#405743}
@@ -132,9 +128,9 @@ header p{font-size:13px;margin:0;color:var(--muted)}
 }
 </style>
 </head>
-<body class="panel-open">
-<div id="view" aria-label="可旋轉與縮放的現代住宅 3D 模型"></div>
-<div id="load"><span>正在建構 3D 居家空間地景...</span></div>
+<body class="clean">
+<div id="view" aria-label="3D Model"></div>
+<div id="load"></div>
 <div id="error" class="error" role="alert"></div>
 
 <header>
@@ -331,7 +327,7 @@ window.addEventListener('error', e => fail(e.message));
 // Scale: 1 cm = 0.22 world units (so ~955cm apartment is ~210 units wide, matching floorplan.html's lighting & shadow scale!)
 const CX = 477.4, CY = 478.8;
 let scale = 0.22;
-let stage = 4, style = 'luxury', night = false, wallMode = 0, dimMode = 0, labelsOn = true, robotsOn = true;
+let stage = 4, style = 'luxury', night = false, wallMode = 0, dimMode = 2, labelsOn = false, robotsOn = true;
 let playing = false, playTimer = null, autoOrbit = false, orbitSpeedDeg = 6, projectionMode = 'ortho', namedView = 'iso';
 
 // Wall heights in cm: 剖視 115cm, 低矮 55cm, 全高 310cm
@@ -1111,13 +1107,10 @@ function buildRobots(){
     cyl(g, 17*scale, 17*scale, 9*scale, 0, 0, 0, mats.white);
     cyl(g, 18*scale, 18*scale, 3*scale, 0, 2*scale, 0, mats.column);
     cyl(g, 5*scale, 5*scale, 4*scale, 0, 9*scale, 0, mats.accent);
-    const sp = makeSpriteText(`${s.name}・清掃中`, '#20392f', '#f7f5ed', s.color, 22, 0.32);
-    sp.position.set(0, 34*scale, 0);
-    g.add(sp);
     g.position.copy(point(s.x, s.y, 2));
 
     robots.push({
-      g, sp, name: s.name, color: s.color,
+      g, name: s.name, color: s.color,
       x: s.x, y: s.y, dock: s.dock, speed: s.speed,
       path: [], pi: 0, wait: 0.2, trips: 0
     });
@@ -1632,7 +1625,25 @@ function init(){
 
   const aspect = window.innerWidth / window.innerHeight;
   const frustum = 250;
-  orthoCam = new THREE.OrthographicCamera(-frustum*aspect/2, frustum*aspect/2, frustum/2, -frustum/2, 1, 2500);
+  orthoCam = new THREE.OrthographicCamera(-frustum, frustum, frustum, -frustum, 1, 2500);
+  const syncOrthoFrustum = () => {
+    const asp = window.innerWidth / window.innerHeight;
+    if(asp < 1){
+      const w = frustum * 1.38;
+      const h = w / asp;
+      orthoCam.left = -w / 2;
+      orthoCam.right = w / 2;
+      orthoCam.top = h / 2;
+      orthoCam.bottom = -h / 2;
+    } else {
+      orthoCam.left = -frustum * asp / 2;
+      orthoCam.right = frustum * asp / 2;
+      orthoCam.top = frustum / 2;
+      orthoCam.bottom = -frustum / 2;
+    }
+    orthoCam.updateProjectionMatrix();
+  };
+  syncOrthoFrustum();
   perspCam = new THREE.PerspectiveCamera(40, aspect, 1, 2500);
   camera = orthoCam;
 
@@ -1683,11 +1694,7 @@ function init(){
 
   window.addEventListener('resize', () => {
     const asp = window.innerWidth / window.innerHeight;
-    orthoCam.left = -frustum * asp / 2;
-    orthoCam.right = frustum * asp / 2;
-    orthoCam.top = frustum / 2;
-    orthoCam.bottom = -frustum / 2;
-    orthoCam.updateProjectionMatrix();
+    syncOrthoFrustum();
     perspCam.aspect = asp;
     perspCam.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);

@@ -73,13 +73,8 @@ header p{font-size:13px;margin:0;color:var(--muted);font-weight:600}
 .dialog h2{font-size:20px;margin:0 0 10px}
 .close{position:absolute;right:12px;top:10px;font-size:24px;min-width:40px;border:0;background:none}
 .dialog img{width:100%;height:auto;border-radius:8px;border:1px solid var(--line)}
-#load{position:fixed;inset:0;display:grid;place-items:center;background:#cbd5cc;z-index:45;font-size:18px;font-weight:800}
-#load span{border-bottom:3px solid #7c3aed;padding:16px 24px}
-.tooltip{position:fixed;bottom:146px;left:50%;transform:translateX(-50%);background:var(--panel);border:2px solid #7c3aed;border-radius:24px;padding:8px 20px;z-index:24;pointer-events:none;opacity:0;transition:.2s;font-weight:700;color:#4c1d95;box-shadow:0 8px 24px rgba(124,58,237,.22)}
-.tooltip.show{opacity:1}
-.clean header,.clean .tour,.clean .panel,.clean .bottom,.clean .badge-row,.clean .handle{opacity:0;pointer-events:none;visibility:hidden}
-.restore{display:none;position:fixed;left:16px;bottom:16px;z-index:25;background:#7c3aed;color:#fff;border:0;border-radius:25px;padding:8px 18px;font-weight:700}
-.clean .restore{display:block}
+#load,.tooltip,.restore{display:none !important}
+.clean header,.clean .tour,.clean .panel,.clean .bottom,.clean .badge-row,.clean .handle,.clean .restore{opacity:0;pointer-events:none;visibility:hidden;display:none !important}
 body.night{background:#111827;--paper:#f3f4f6;--ink:#f9fafb;--muted:#9ca3af;--line:#374151;--panel:rgba(17,24,39,.92)}
 body.night .seg-group button,body.night .row button{background:#1f2937;color:#f3f4f6;border-color:#374151}
 body.night .seg-group button.active{background:#7c3aed;color:#fff}
@@ -92,9 +87,9 @@ body.night .tour button.active{background:#311068;color:#ede9fe}
 }
 </style>
 </head>
-<body>
-<div id="view" aria-label="華山1914 東3A Magic Box 3D 動線與人流導引地圖"></div>
-<div id="load"><span>正在建構 華山1914 園區 3D 建築與 Magic Box 動線人流...</span></div>
+<body class="clean">
+<div id="view" aria-label="3D Event Map"></div>
+<div id="load"></div>
 
 <header>
   <div class="masthead">
@@ -382,7 +377,7 @@ let scene, camera, renderer, controls, root;
 let activeRouteId = 'main';
 let crowdMode = 'peak';
 let themeMode = 'day';
-let chevronsOn = true, crowdOn = true, labelsOn = true, xrayBuildings = false, autoOrbit = false;
+let chevronsOn = true, crowdOn = true, labelsOn = false, xrayBuildings = false, autoOrbit = false;
 let isFollowing = false, followTween = null;
 
 const groups = {};
@@ -619,9 +614,9 @@ function buildParkScene(){
       targetPulseRing.position.set(0, 0.6, 0);
       targetBeaconGroup.add(targetPulseRing);
 
-      // Floating Star Venue Pin
-      targetPin = makeSpriteBadge('★ 活動主場館｜東3A Magic Box', '#ffffff', '#7c3aed', '#fde047', 30, 0.52);
-      targetPin.position.set(0, h + 13, 0);
+      // Floating 3D Geometric Diamond Beacon (Zero Text!)
+      targetPin = new THREE.Mesh(new THREE.OctahedronGeometry(3.2, 0), crownMat);
+      targetPin.position.set(0, h + 8, 0);
       targetBeaconGroup.add(targetPin);
       continue;
     }
@@ -807,8 +802,8 @@ function buildWayfindingRoutes(){
       });
     }
 
-    // Milestone Badges for the currently active route
-    if(isSelected){
+    // Milestone Badges (only when labelsOn is enabled)
+    if(isSelected && labelsOn){
       for(const ms of r.milestones){
         const badge = makeSpriteBadge(ms.text, '#ffffff', r.hex, '#fef08a', 23, 0.38);
         badge.position.copy(pt(ms.px, ms.py, 44));
@@ -924,7 +919,8 @@ function updateCrowdAndChevrons(dt, elapsed){
     targetPulseRing.material.opacity = 0.85 * (1 - (elapsed * 0.85 % 1));
   }
   if(targetPin){
-    targetPin.position.y = (115 * SCALE) + 12 + Math.sin(elapsed * 3.2) * 1.4;
+    targetPin.position.y = (115 * SCALE) + 8 + Math.sin(elapsed * 3.2) * 1.4;
+    targetPin.rotation.y = elapsed * 1.8;
   }
 }
 
@@ -981,7 +977,7 @@ function flyToPreset(preset){
   stopFollow();
   document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === preset));
   const presets = {
-    mainRoute: { tx: 28, ty: 8, tz: -6, radius: 275, phi: 0.86, theta: 0.34, zoom: 1.16 },
+    mainRoute: { tx: 18, ty: 4, tz: 2, radius: 275, phi: 0.86, theta: 0.32, zoom: 1.12 },
     magicBox:  { tx: 55, ty: 8, tz: -48, radius: 210, phi: 0.82, theta: 0.52, zoom: 2.35 },
     southEntry:{ tx: 42, ty: 2, tz: 42, radius: 230, phi: 0.85, theta: 0.25, zoom: 1.85 },
     parking:   { tx: -12, ty: 6, tz: -24, radius: 240, phi: 0.86, theta: -0.45, zoom: 1.65 },
@@ -1109,8 +1105,26 @@ function init(){
 
   const aspect = window.innerWidth / window.innerHeight;
   const frustum = 230;
-  camera = new THREE.OrthographicCamera(-frustum*aspect/2, frustum*aspect/2, frustum/2, -frustum/2, -900, 1200);
-  camera.zoom = 1.28;
+  camera = new THREE.OrthographicCamera(-frustum, frustum, frustum, -frustum, -900, 1200);
+  const syncOrthoFrustum = () => {
+    const a = window.innerWidth / window.innerHeight;
+    if(a < 1){
+      const w = frustum * 1.18;
+      const h = w / a;
+      camera.left = -w / 2;
+      camera.right = w / 2;
+      camera.top = h / 2;
+      camera.bottom = -h / 2;
+    } else {
+      camera.left = -frustum * a / 2;
+      camera.right = frustum * a / 2;
+      camera.top = frustum / 2;
+      camera.bottom = -frustum / 2;
+    }
+    camera.updateProjectionMatrix();
+  };
+  syncOrthoFrustum();
+  camera.zoom = 1.16;
 
   hemiLight = new THREE.HemisphereLight(0xfff9ee, 0x4f6256, 0.95);
   scene.add(hemiLight);
@@ -1138,6 +1152,7 @@ function init(){
   scene.add(root);
 
   buildParkScene();
+  groups.labels.visible = labelsOn;
   rebuildCrowd();
   renderRouteButtons();
   renderLayerControls();
@@ -1200,12 +1215,7 @@ function init(){
   });
 
   window.addEventListener('resize', () => {
-    const a = window.innerWidth / window.innerHeight;
-    camera.left = -frustum*a/2;
-    camera.right = frustum*a/2;
-    camera.top = frustum/2;
-    camera.bottom = -frustum/2;
-    camera.updateProjectionMatrix();
+    syncOrthoFrustum();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
