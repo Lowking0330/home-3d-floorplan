@@ -1,0 +1,5 @@
+# Ignore original PDF and reference files to protect privacy
+*.pdf
+*.png
+floorplan.html
+hualong-a7-3d.html
