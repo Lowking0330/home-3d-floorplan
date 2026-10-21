@@ -601,6 +601,31 @@ function buildParkScene(){
       crown.position.y = h + 0.7;
       targetBeaconGroup.add(crown);
 
+      // Roof Surface Lettering ("Magic Box" painted directly on the roof top)
+      const rc = document.createElement('canvas');
+      rc.width = 512; rc.height = 384;
+      const rctx = rc.getContext('2d');
+      rctx.fillStyle = '#fbbf24';
+      rctx.fillRect(0, 0, 512, 384);
+      rctx.strokeStyle = '#4c1d95';
+      rctx.lineWidth = 18;
+      rctx.strokeRect(16, 16, 480, 352);
+      rctx.fillStyle = '#3b0764';
+      rctx.font = '900 82px "Segoe UI","Microsoft JhengHei",sans-serif';
+      rctx.textAlign = 'center';
+      rctx.textBaseline = 'middle';
+      rctx.fillText('Magic', 256, 148);
+      rctx.fillText('Box', 256, 246);
+      const rTex = new THREE.CanvasTexture(rc);
+      rTex.encoding = THREE.sRGBEncoding;
+      const roofSign = new THREE.Mesh(
+        new THREE.PlaneGeometry(w * 0.94, d * 0.92),
+        new THREE.MeshBasicMaterial({map: rTex, toneMapped: false})
+      );
+      roofSign.rotation.x = -Math.PI / 2;
+      roofSign.position.y = h + 1.45;
+      targetBeaconGroup.add(roofSign);
+
       // Entrance Arch on West side (facing 劇場廣場 x1=1630)
       const arch = new THREE.Mesh(new THREE.BoxGeometry(1.4, h*0.65, d*0.48), crownMat);
       arch.position.set(-w/2 - 0.5, h*0.325, 0);
@@ -614,9 +639,13 @@ function buildParkScene(){
       targetPulseRing.position.set(0, 0.6, 0);
       targetBeaconGroup.add(targetPulseRing);
 
-      // Floating 3D Geometric Diamond Beacon (Zero Text!)
-      targetPin = new THREE.Mesh(new THREE.OctahedronGeometry(3.2, 0), crownMat);
-      targetPin.position.set(0, h + 8, 0);
+      // Rooftop Sign Pole + Prominent "Magic Box" Signboard
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9, 12), crownMat);
+      pole.position.set(0, h + 5.5, 0);
+      targetBeaconGroup.add(pole);
+
+      targetPin = makeSpriteBadge('Magic Box', '#ffffff', '#6d28d9', '#fde047', 44, 0.76);
+      targetPin.position.set(0, h + 12.5, 0);
       targetBeaconGroup.add(targetPin);
       continue;
     }
@@ -919,8 +948,7 @@ function updateCrowdAndChevrons(dt, elapsed){
     targetPulseRing.material.opacity = 0.85 * (1 - (elapsed * 0.85 % 1));
   }
   if(targetPin){
-    targetPin.position.y = (115 * SCALE) + 8 + Math.sin(elapsed * 3.2) * 1.4;
-    targetPin.rotation.y = elapsed * 1.8;
+    targetPin.position.y = (115 * SCALE) + 12.5 + Math.sin(elapsed * 3.2) * 1.2;
   }
 }
 
